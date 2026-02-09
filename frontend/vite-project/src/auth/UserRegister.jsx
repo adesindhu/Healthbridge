@@ -1,45 +1,143 @@
-import React from "react";
-import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import React, { useState } from "react";
 
 export default function UserRegister() {
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    mobile: "",
+    gender: "",
+    password: "",
+    confirmPassword: "",
+    agree: false,
+  });
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData({
+      ...formData,
+      [name]: type === "checkbox" ? checked : value,
+    });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (formData.password !== formData.confirmPassword) {
+      alert("Passwords do not match");
+      return;
+    }
+
+    if (!formData.agree) {
+      alert("Please accept terms & privacy policy");
+      return;
+    }
+
+    console.log("User Registration Data:", formData);
+    alert("Registration successful!");
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 to-blue-200">
-      
-      <motion.div
-        initial={{ opacity: 0, x: 80 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6 }}
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8"
-      >
-        <h2 className="text-3xl font-bold text-center text-indigo-600 mb-6">
-          Create Account ✨
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#6b21a8,_#000)] flex items-center justify-center px-4">
+      <div className="bg-black/50 backdrop-blur-2xl p-8 rounded-3xl w-full max-w-md border border-white/10 shadow-2xl text-white">
+
+        {/* Header */}
+        <h2 className="text-4xl font-extrabold text-center bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+          Create Account
         </h2>
 
-        <motion.input whileFocus={{ scale: 1.02 }} placeholder="Full Name"
-          className="w-full mb-3 px-4 py-3 border rounded-xl" />
-
-        <motion.input whileFocus={{ scale: 1.02 }} placeholder="Email"
-          className="w-full mb-3 px-4 py-3 border rounded-xl" />
-
-        <motion.input whileFocus={{ scale: 1.02 }} type="password" placeholder="Password"
-          className="w-full mb-4 px-4 py-3 border rounded-xl" />
-
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold"
-        >
-          Register
-        </motion.button>
-
-        <p className="text-center mt-4 text-sm">
-          Already have an account?{" "}
-          <Link to="/user-login" className="text-indigo-600 font-medium">
-            Login
-          </Link>
+        <p className="text-center text-gray-400 mt-2 text-sm">
+          Join to consult verified doctors
         </p>
-      </motion.div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+
+          <Input
+            name="fullName"
+            placeholder="Full Name"
+            onChange={handleChange}
+          />
+
+          <Input
+            type="email"
+            name="email"
+            placeholder="Email Address"
+            onChange={handleChange}
+          />
+
+          <Input
+            name="mobile"
+            placeholder="Mobile Number"
+            onChange={handleChange}
+          />
+
+          <Select name="gender" onChange={handleChange}>
+            <option value="">Gender</option>
+            <option>Male</option>
+            <option>Female</option>
+            <option>Other</option>
+          </Select>
+
+          <Input
+            type="password"
+            name="password"
+            placeholder="Create Password"
+            onChange={handleChange}
+          />
+
+          <Input
+            type="password"
+            name="confirmPassword"
+            placeholder="Confirm Password"
+            onChange={handleChange}
+          />
+
+          {/* Consent */}
+          <div className="flex items-start gap-3 text-sm text-gray-300">
+            <input
+              type="checkbox"
+              name="agree"
+              onChange={handleChange}
+              className="mt-1"
+            />
+            <p>
+              I agree to the Terms of Service & Privacy Policy
+            </p>
+          </div>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-semibold hover:scale-[1.02] transition"
+          >
+            Create Account
+          </button>
+
+          <p className="text-center text-xs text-gray-500">
+            Your data is secure and private
+          </p>
+        </form>
+      </div>
     </div>
   );
 }
+
+/* ===== Reusable UI ===== */
+
+const Input = ({ ...props }) => (
+  <input
+    {...props}
+    required
+    className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 focus:ring-2 focus:ring-purple-600 outline-none"
+  />
+);
+
+const Select = ({ children, ...props }) => (
+  <select
+    {...props}
+    required
+    className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 focus:ring-2 focus:ring-purple-600 outline-none"
+  >
+    {children}
+  </select>
+);

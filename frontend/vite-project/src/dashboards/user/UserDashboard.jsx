@@ -1,64 +1,48 @@
-import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { FaBrain, FaUserMd, FaUser } from "react-icons/fa";
 
 export default function UserDashboard() {
+  const navigate = useNavigate();
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-100 p-6">
-      
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
-      >
-        <h1 className="text-3xl font-bold text-blue-700">
-          Welcome 👋
-        </h1>
-        <p className="text-gray-600">
-          Your personalized health dashboard
-        </p>
-      </motion.div>
+    <div className="min-h-screen bg-gradient-to-br from-black to-purple-900 p-10 text-white">
+      <h1 className="text-4xl font-bold mb-8 text-center">
+        User Dashboard
+      </h1>
 
-      {/* Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-3 gap-6">
 
-        {/* Card */}
-        <motion.div
-          whileHover={{ scale: 1.03 }}
-          className="bg-white p-6 rounded-2xl shadow-lg"
-        >
-          <h2 className="text-xl font-semibold text-purple-600">
-            AI Health Analysis
-          </h2>
-          <p className="text-gray-500 mt-2">
-            Get insights based on your health data
-          </p>
-        </motion.div>
+        <DashboardCard
+          icon={<FaBrain size={32} />}
+          title="AI Health Overview"
+          onClick={() => navigate("/user/health")}
+        />
 
-        <motion.div
-          whileHover={{ scale: 1.03 }}
-          className="bg-white p-6 rounded-2xl shadow-lg"
-        >
-          <h2 className="text-xl font-semibold text-blue-600">
-            Mental Health
-          </h2>
-          <p className="text-gray-500 mt-2">
-            Mood & stress level tracking
-          </p>
-        </motion.div>
+        <DashboardCard
+          icon={<FaUserMd size={32} />}
+          title="Find Doctors"
+          onClick={() => navigate("/user/health")}
+        />
 
-        <motion.div
-          whileHover={{ scale: 1.03 }}
-          className="bg-white p-6 rounded-2xl shadow-lg"
-        >
-          <h2 className="text-xl font-semibold text-pink-600">
-            Emergency Help 🚑
-          </h2>
-          <p className="text-gray-500 mt-2">
-            Find nearby doctors instantly
-          </p>
-        </motion.div>
+        <DashboardCard
+          icon={<FaUser size={32} />}
+          title="Profile"
+          onClick={() => navigate("/user/profile")}
+        />
 
       </div>
+    </div>
+  );
+}
+
+function DashboardCard({ icon, title, onClick }) {
+  return (
+    <div
+      onClick={onClick}
+      className="bg-black/60 p-6 rounded-2xl cursor-pointer hover:scale-105 transition border border-white/10"
+    >
+      <div className="text-purple-400 mb-3">{icon}</div>
+      <h2 className="text-xl font-semibold">{title}</h2>
     </div>
   );
 }

@@ -1,45 +1,41 @@
-import { motion } from "framer-motion";
+import React from "react";
+import { FaUser, FaEnvelope } from "react-icons/fa";
 
 export default function Profile() {
+  // Temporary static data (later replace with API data)
+  const user = {
+    name: "John Doe",
+    email: "john@example.com",
+    role: "User",
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-100 p-6">
-      
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
-      >
-        <h1 className="text-3xl font-bold text-blue-700">Your Profile</h1>
-        <p className="text-gray-600">Manage your personal information</p>
-      </motion.div>
+    <div className="min-h-screen bg-gradient-to-br from-black to-purple-900 p-8 text-white">
+      <h1 className="text-3xl font-bold mb-8">My Profile</h1>
 
-      {/* Profile Details */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="bg-white p-6 rounded-2xl shadow-lg max-w-2xl mx-auto"
-      >
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold text-purple-600">Name</h2>
-          <p className="text-gray-500">John Doe</p>
+      <div className="max-w-xl bg-black/60 p-6 rounded-2xl border border-white/10">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="bg-purple-600 w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold">
+            {user.name.charAt(0)}
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold">{user.name}</h2>
+            <p className="text-gray-400">{user.role}</p>
+          </div>
         </div>
 
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold text-purple-600">Email</h2>
-          <p className="text-gray-500">johndoe@example.com</p>
-        </div>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <FaEnvelope className="text-purple-400" />
+            <span>{user.email}</span>
+          </div>
 
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold text-purple-600">Phone</h2>
-          <p className="text-gray-500">+91 9876543210</p>
+          <button className="mt-6 w-full bg-purple-600 hover:bg-purple-700 transition py-3 rounded-xl font-semibold">
+            Edit Profile
+          </button>
         </div>
-
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold text-purple-600">Address</h2>
-          <p className="text-gray-500">123, Health Street, Bangalore, India</p>
-        </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
