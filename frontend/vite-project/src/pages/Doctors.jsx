@@ -88,7 +88,7 @@ export default function Doctors() {
             ))
           ) : (
             <p className="col-span-full text-center text-gray-500">
-              No doctors found
+             No doctors found
             </p>
           )}
         </div>
