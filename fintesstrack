@@ -1,0 +1,670 @@
+import { useState, useEffect } from "react";
+
+// ─── Data ────────────────────────────────────────────────────────────────────
+const FOOD_DB = [
+  { name: "Greek Yogurt", cal: 130, protein: 17, carbs: 9, fat: 4, emoji: "🥛" },
+  { name: "Oatmeal (1 cup)", cal: 150, protein: 6, carbs: 27, fat: 3, emoji: "🥣" },
+  { name: "Banana", cal: 89, protein: 1, carbs: 23, fat: 0, emoji: "🍌" },
+  { name: "Chicken Breast (100g)", cal: 165, protein: 31, carbs: 0, fat: 4, emoji: "🍗" },
+  { name: "Avocado (half)", cal: 120, protein: 1, carbs: 6, fat: 11, emoji: "🥑" },
+  { name: "Brown Rice (1 cup)", cal: 216, protein: 5, carbs: 45, fat: 2, emoji: "🍚" },
+  { name: "Almonds (28g)", cal: 164, protein: 6, carbs: 6, fat: 14, emoji: "🌰" },
+  { name: "Spinach Salad", cal: 41, protein: 5, carbs: 4, fat: 1, emoji: "🥗" },
+  { name: "Salmon (100g)", cal: 208, protein: 20, carbs: 0, fat: 13, emoji: "🐟" },
+  { name: "Sweet Potato", cal: 103, protein: 2, carbs: 24, fat: 0, emoji: "🍠" },
+  { name: "Egg (1 large)", cal: 72, protein: 6, carbs: 0, fat: 5, emoji: "🥚" },
+  { name: "Berries (1 cup)", cal: 84, protein: 1, carbs: 21, fat: 0, emoji: "🫐" },
+];
+
+const WORKOUTS = [
+  { name: "Morning Yoga", duration: 30, cal: 150, type: "Flexibility", emoji: "🧘‍♀️" },
+  { name: "HIIT Cardio", duration: 25, cal: 280, type: "Cardio", emoji: "🔥" },
+  { name: "Strength Training", duration: 45, cal: 220, type: "Strength", emoji: "💪" },
+  { name: "Pilates", duration: 40, cal: 175, type: "Core", emoji: "🌿" },
+  { name: "Running 5K", duration: 35, cal: 300, type: "Cardio", emoji: "🏃‍♀️" },
+  { name: "Dance Workout", duration: 30, cal: 200, type: "Cardio", emoji: "💃" },
+  { name: "Swimming", duration: 45, cal: 360, type: "Full Body", emoji: "🏊‍♀️" },
+  { name: "Cycling", duration: 40, cal: 250, type: "Cardio", emoji: "🚴‍♀️" },
+];
+
+const DAILY_GOALS = { cal: 1800, protein: 120, carbs: 200, fat: 60, water: 8, steps: 8000 };
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const pct = (val, max) => Math.min(100, Math.round((val / max) * 100));
+
+function Ring({ value, max, color, size = 80, stroke = 8, label, sublabel }) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const filled = (pct(value, max) / 100) * circ;
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#f3f4f6" strokeWidth={stroke} />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke={color} strokeWidth={stroke} strokeLinecap="round"
+          strokeDasharray={`${filled} ${circ}`}
+          style={{ transition: "stroke-dasharray 0.7s ease" }}
+        />
+      </svg>
+      <div className="text-center -mt-1">
+        <p className="text-xs font-bold text-stone-700" style={{ fontFamily: "DM Sans, sans-serif" }}>{label}</p>
+        <p className="text-xs text-stone-400" style={{ fontFamily: "DM Sans, sans-serif" }}>{sublabel}</p>
+      </div>
+    </div>
+  );
+}
+
+function Bar({ label, value, max, color }) {
+  return (
+    <div className="mb-2">
+      <div className="flex justify-between text-xs mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>
+        <span className="text-stone-500">{label}</span>
+        <span className="text-stone-700 font-semibold">{value}g <span className="text-stone-400 font-normal">/ {max}g</span></span>
+      </div>
+      <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all duration-700 ${color}`} style={{ width: `${pct(value, max)}%` }} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Main App ────────────────────────────────────────────────────────────────
+export default function FitnessTracker() {
+  const [tab, setTab] = useState("dashboard");
+  const [meals, setMeals] = useState([]);
+  const [workoutsLogged, setWorkoutsLogged] = useState([]);
+  const [water, setWater] = useState(0);
+  const [steps, setSteps] = useState(0);
+  const [stepsInput, setStepsInput] = useState("");
+  const [foodSearch, setFoodSearch] = useState("");
+  const [selectedFood, setSelectedFood] = useState(null);
+  const [foodQty, setFoodQty] = useState(1);
+  const [mealType, setMealType] = useState("Breakfast");
+  const [weekData] = useState(() =>
+    DAYS.map((d, i) => ({
+      day: d,
+      cal: i === 6 ? 0 : Math.floor(Math.random() * 600) + 1300,
+      workout: i !== 1 && i !== 4 && i !== 6,
+    }))
+  );
+  const [weight, setWeight] = useState("");
+  const [weightLog, setWeightLog] = useState([
+    { date: "Feb 21", val: 65.2 }, { date: "Feb 22", val: 65.0 }, { date: "Feb 23", val: 65.4 },
+    { date: "Feb 24", val: 65.1 }, { date: "Feb 25", val: 64.9 }, { date: "Feb 26", val: 64.8 },
+  ]);
+  const [showFoodModal, setShowFoodModal] = useState(false);
+  const [showWorkoutModal, setShowWorkoutModal] = useState(false);
+  const [addedFeedback, setAddedFeedback] = useState("");
+
+  const totals = meals.reduce((acc, m) => ({
+    cal: acc.cal + m.cal,
+    protein: acc.protein + m.protein,
+    carbs: acc.carbs + m.carbs,
+    fat: acc.fat + m.fat,
+  }), { cal: 0, protein: 0, carbs: 0, fat: 0 });
+
+  const calBurned = workoutsLogged.reduce((s, w) => s + w.cal, 0);
+  const netCal = totals.cal - calBurned;
+
+  const filteredFoods = FOOD_DB.filter(f =>
+    f.name.toLowerCase().includes(foodSearch.toLowerCase())
+  );
+
+  const addFood = () => {
+    if (!selectedFood) return;
+    setMeals(prev => [...prev, {
+      ...selectedFood,
+      cal: Math.round(selectedFood.cal * foodQty),
+      protein: Math.round(selectedFood.protein * foodQty),
+      carbs: Math.round(selectedFood.carbs * foodQty),
+      fat: Math.round(selectedFood.fat * foodQty),
+      qty: foodQty,
+      mealType,
+      id: Date.now(),
+    }]);
+    setAddedFeedback(`${selectedFood.emoji} ${selectedFood.name} added!`);
+    setTimeout(() => setAddedFeedback(""), 2000);
+    setSelectedFood(null); setFoodSearch(""); setFoodQty(1);
+    setShowFoodModal(false);
+  };
+
+  const addWorkout = (w) => {
+    setWorkoutsLogged(prev => [...prev, { ...w, id: Date.now() }]);
+    setAddedFeedback(`${w.emoji} ${w.name} logged!`);
+    setTimeout(() => setAddedFeedback(""), 2000);
+    setShowWorkoutModal(false);
+  };
+
+  const logWeight = () => {
+    if (!weight) return;
+    const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    setWeightLog(prev => [...prev, { date: today, val: parseFloat(weight) }]);
+    setWeight("");
+  };
+
+  const logSteps = () => {
+    if (!stepsInput) return;
+    setSteps(parseInt(stepsInput));
+    setStepsInput("");
+  };
+
+  const tabs = [
+    { id: "dashboard", label: "Dashboard", icon: "⚡" },
+    { id: "nutrition", label: "Nutrition", icon: "🥗" },
+    { id: "fitness", label: "Fitness", icon: "💪" },
+    { id: "progress", label: "Progress", icon: "📈" },
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#0f0f13] text-white" style={{ fontFamily: "DM Sans, sans-serif" }}>
+
+      {/* Ambient background */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full opacity-10 blur-3xl" style={{ background: "radial-gradient(circle, #f472b6, transparent)" }} />
+        <div className="absolute bottom-1/3 right-0 w-80 h-80 rounded-full opacity-10 blur-3xl" style={{ background: "radial-gradient(circle, #34d399, transparent)" }} />
+        <div className="absolute top-2/3 left-0 w-64 h-64 rounded-full opacity-8 blur-3xl" style={{ background: "radial-gradient(circle, #fb923c, transparent)" }} />
+      </div>
+
+      {/* Feedback toast */}
+      {addedFeedback && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-emerald-500 text-white text-sm px-5 py-2 rounded-full shadow-lg">
+          {addedFeedback}
+        </div>
+      )}
+
+      {/* Header */}
+      <header className="relative z-10 px-5 pt-10 pb-6 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-pink-400 text-xs tracking-widest uppercase mb-1">Good morning ✨</p>
+            <h1 className="text-3xl font-bold text-white" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
+              Your <span className="text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(90deg, #f472b6, #fb923c)" }}>Wellness</span> Hub
+            </h1>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-stone-500">Today</p>
+            <p className="text-sm text-stone-300 font-semibold">
+              {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            </p>
+          </div>
+        </div>
+      </header>
+
+      {/* Nav */}
+      <nav className="relative z-10 max-w-2xl mx-auto px-5 mb-6">
+        <div className="flex bg-[#1a1a24] rounded-2xl p-1 gap-1">
+          {tabs.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                tab === t.id
+                  ? "text-white shadow-lg"
+                  : "text-stone-500 hover:text-stone-300"
+              }`}
+              style={tab === t.id ? { background: "linear-gradient(135deg, #f472b6, #fb923c)" } : {}}
+            >
+              <span className="block text-base mb-0.5">{t.icon}</span>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      <main className="relative z-10 max-w-2xl mx-auto px-5 pb-20">
+
+        {/* ── DASHBOARD ── */}
+        {tab === "dashboard" && (
+          <div className="space-y-5">
+            {/* Calorie Ring Summary */}
+            <div className="bg-[#1a1a24] rounded-3xl p-6 border border-[#2a2a38]">
+              <h2 className="text-sm font-semibold text-stone-400 mb-5 uppercase tracking-widest">Today's Overview</h2>
+              <div className="flex items-center justify-around">
+                <Ring value={totals.cal} max={DAILY_GOALS.cal} color="#f472b6" size={90} stroke={9}
+                  label={`${totals.cal}`} sublabel="kcal eaten" />
+                <div className="text-center">
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold border-4 border-[#2a2a38]"
+                    style={{ color: netCal > DAILY_GOALS.cal ? "#f87171" : "#34d399" }}>
+                    {netCal}
+                  </div>
+                  <p className="text-xs text-stone-400 mt-1">net kcal</p>
+                </div>
+                <Ring value={calBurned} max={500} color="#34d399" size={90} stroke={9}
+                  label={`${calBurned}`} sublabel="kcal burned" />
+              </div>
+            </div>
+
+            {/* Quick stats */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Water */}
+              <div className="bg-[#1a1a24] rounded-2xl p-5 border border-[#2a2a38]">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xl">💧</span>
+                  <span className="text-xs text-stone-500">{water}/{DAILY_GOALS.water} glasses</span>
+                </div>
+                <div className="flex gap-1 flex-wrap mb-3">
+                  {Array.from({ length: DAILY_GOALS.water }).map((_, i) => (
+                    <div key={i} className={`w-5 h-5 rounded-full transition-all ${i < water ? "bg-sky-400" : "bg-[#2a2a38]"}`} />
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setWater(w => Math.max(0, w - 1))}
+                    className="flex-1 bg-[#2a2a38] hover:bg-[#33334a] text-white text-xs py-1.5 rounded-lg transition-colors">-</button>
+                  <button onClick={() => setWater(w => Math.min(DAILY_GOALS.water, w + 1))}
+                    className="flex-1 text-white text-xs py-1.5 rounded-lg transition-colors"
+                    style={{ background: "linear-gradient(135deg, #38bdf8, #0ea5e9)" }}>+ Glass</button>
+                </div>
+              </div>
+
+              {/* Steps */}
+              <div className="bg-[#1a1a24] rounded-2xl p-5 border border-[#2a2a38]">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xl">👟</span>
+                  <span className="text-xs text-stone-500">{pct(steps, DAILY_GOALS.steps)}%</span>
+                </div>
+                <p className="text-2xl font-bold text-white mb-1">{steps.toLocaleString()}</p>
+                <p className="text-xs text-stone-500 mb-3">of {DAILY_GOALS.steps.toLocaleString()} steps</p>
+                <div className="flex gap-2">
+                  <input value={stepsInput} onChange={e => setStepsInput(e.target.value)} placeholder="Steps..."
+                    className="flex-1 bg-[#2a2a38] text-white text-xs rounded-lg px-2 py-1.5 outline-none min-w-0" />
+                  <button onClick={logSteps} className="text-white text-xs px-3 py-1.5 rounded-lg"
+                    style={{ background: "linear-gradient(135deg, #fb923c, #f97316)" }}>Log</button>
+                </div>
+              </div>
+            </div>
+
+            {/* Macros */}
+            <div className="bg-[#1a1a24] rounded-2xl p-5 border border-[#2a2a38]">
+              <h3 className="text-sm font-semibold text-stone-400 uppercase tracking-wider mb-4">Macronutrients</h3>
+              <Bar label="Protein" value={totals.protein} max={DAILY_GOALS.protein} color="bg-pink-400" />
+              <Bar label="Carbs" value={totals.carbs} max={DAILY_GOALS.carbs} color="bg-amber-400" />
+              <Bar label="Fat" value={totals.fat} max={DAILY_GOALS.fat} color="bg-emerald-400" />
+            </div>
+
+            {/* Weekly activity */}
+            <div className="bg-[#1a1a24] rounded-2xl p-5 border border-[#2a2a38]">
+              <h3 className="text-sm font-semibold text-stone-400 uppercase tracking-wider mb-4">This Week</h3>
+              <div className="flex items-end justify-between gap-1 h-24">
+                {weekData.map((d, i) => {
+                  const h = Math.round((d.cal / 2000) * 80);
+                  const isToday = i === 6;
+                  return (
+                    <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
+                      <div className="w-full rounded-t-lg transition-all"
+                        style={{
+                          height: `${h}px`,
+                          background: isToday
+                            ? "linear-gradient(180deg, #f472b6, #fb923c)"
+                            : d.workout ? "#2d4a3e" : "#2a2a38",
+                          minHeight: isToday ? 4 : 2
+                        }} />
+                      <span className={`text-xs ${isToday ? "text-pink-400 font-bold" : "text-stone-600"}`}>{d.day}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Quick actions */}
+            <div className="grid grid-cols-2 gap-4">
+              <button onClick={() => setShowFoodModal(true)}
+                className="rounded-2xl p-5 text-left border border-[#2a2a38] hover:border-pink-500 transition-all"
+                style={{ background: "linear-gradient(135deg, #1a1a24, #2a1a2e)" }}>
+                <span className="text-2xl block mb-2">🍽️</span>
+                <p className="font-semibold text-white text-sm">Log Meal</p>
+                <p className="text-xs text-stone-500 mt-0.5">{meals.length} items today</p>
+              </button>
+              <button onClick={() => setShowWorkoutModal(true)}
+                className="rounded-2xl p-5 text-left border border-[#2a2a38] hover:border-emerald-500 transition-all"
+                style={{ background: "linear-gradient(135deg, #1a1a24, #1a2e1a)" }}>
+                <span className="text-2xl block mb-2">🏋️‍♀️</span>
+                <p className="font-semibold text-white text-sm">Log Workout</p>
+                <p className="text-xs text-stone-500 mt-0.5">{workoutsLogged.length} sessions today</p>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── NUTRITION ── */}
+        {tab === "nutrition" && (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>Nutrition Log</h2>
+              <button onClick={() => setShowFoodModal(true)}
+                className="text-xs text-white px-4 py-2 rounded-full font-semibold"
+                style={{ background: "linear-gradient(135deg, #f472b6, #fb923c)" }}>
+                + Add Food
+              </button>
+            </div>
+
+            {/* Calorie summary card */}
+            <div className="rounded-2xl p-5 border border-[#2a2a38]"
+              style={{ background: "linear-gradient(135deg, #1e0f1e, #1e1310)" }}>
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs text-stone-500 uppercase tracking-wider mb-1">Calories Today</p>
+                  <p className="text-4xl font-bold" style={{ background: "linear-gradient(90deg,#f472b6,#fb923c)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                    {totals.cal}
+                  </p>
+                  <p className="text-xs text-stone-500 mt-1">of {DAILY_GOALS.cal} kcal goal</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-stone-500">Remaining</p>
+                  <p className={`text-2xl font-bold ${DAILY_GOALS.cal - totals.cal < 0 ? "text-red-400" : "text-emerald-400"}`}>
+                    {DAILY_GOALS.cal - totals.cal}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4">
+                <div className="h-2 bg-[#2a2a38] rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-700"
+                    style={{ width: `${pct(totals.cal, DAILY_GOALS.cal)}%`, background: "linear-gradient(90deg,#f472b6,#fb923c)" }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Macro rings */}
+            <div className="bg-[#1a1a24] rounded-2xl p-5 border border-[#2a2a38]">
+              <h3 className="text-sm font-semibold text-stone-400 uppercase tracking-wider mb-5">Macros</h3>
+              <div className="flex justify-around">
+                <Ring value={totals.protein} max={DAILY_GOALS.protein} color="#f472b6" size={80} stroke={7}
+                  label={`${totals.protein}g`} sublabel="Protein" />
+                <Ring value={totals.carbs} max={DAILY_GOALS.carbs} color="#fb923c" size={80} stroke={7}
+                  label={`${totals.carbs}g`} sublabel="Carbs" />
+                <Ring value={totals.fat} max={DAILY_GOALS.fat} color="#34d399" size={80} stroke={7}
+                  label={`${totals.fat}g`} sublabel="Fat" />
+              </div>
+            </div>
+
+            {/* Meal groups */}
+            {["Breakfast", "Lunch", "Dinner", "Snack"].map(mt => {
+              const items = meals.filter(m => m.mealType === mt);
+              return (
+                <div key={mt} className="bg-[#1a1a24] rounded-2xl border border-[#2a2a38] overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-3 border-b border-[#2a2a38]">
+                    <span className="text-sm font-semibold text-white">{mt}</span>
+                    <span className="text-xs text-stone-500">{items.reduce((s, m) => s + m.cal, 0)} kcal</span>
+                  </div>
+                  {items.length === 0 ? (
+                    <p className="px-5 py-3 text-xs text-stone-600 italic">Nothing logged yet</p>
+                  ) : (
+                    items.map(item => (
+                      <div key={item.id} className="flex items-center justify-between px-5 py-3 border-b border-[#1e1e2a] last:border-0">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">{item.emoji}</span>
+                          <div>
+                            <p className="text-sm text-white">{item.name}</p>
+                            <p className="text-xs text-stone-500">P: {item.protein}g · C: {item.carbs}g · F: {item.fat}g</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-semibold text-pink-400">{item.cal} kcal</span>
+                          <button onClick={() => setMeals(m => m.filter(x => x.id !== item.id))}
+                            className="text-stone-600 hover:text-red-400 transition-colors text-lg leading-none">×</button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── FITNESS ── */}
+        {tab === "fitness" && (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>Fitness Log</h2>
+              <button onClick={() => setShowWorkoutModal(true)}
+                className="text-xs text-white px-4 py-2 rounded-full font-semibold"
+                style={{ background: "linear-gradient(135deg, #34d399, #059669)" }}>
+                + Log Workout
+              </button>
+            </div>
+
+            {/* Burn summary */}
+            <div className="rounded-2xl p-5 border border-[#2a2a38]"
+              style={{ background: "linear-gradient(135deg, #0f1e14, #1e1310)" }}>
+              <p className="text-xs text-stone-500 uppercase tracking-wider mb-1">Calories Burned Today</p>
+              <p className="text-4xl font-bold text-emerald-400 mb-1">{calBurned} <span className="text-base text-stone-500 font-normal">kcal</span></p>
+              <div className="flex gap-4 mt-3">
+                <div>
+                  <p className="text-2xl font-bold text-white">{workoutsLogged.length}</p>
+                  <p className="text-xs text-stone-500">Sessions</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">{workoutsLogged.reduce((s, w) => s + w.duration, 0)}</p>
+                  <p className="text-xs text-stone-500">Minutes</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Today's workouts */}
+            <div className="bg-[#1a1a24] rounded-2xl border border-[#2a2a38] overflow-hidden">
+              <div className="px-5 py-3 border-b border-[#2a2a38]">
+                <h3 className="text-sm font-semibold text-stone-400 uppercase tracking-wider">Today's Sessions</h3>
+              </div>
+              {workoutsLogged.length === 0 ? (
+                <div className="px-5 py-8 text-center">
+                  <p className="text-4xl mb-2">🏃‍♀️</p>
+                  <p className="text-stone-500 text-sm">No workouts yet today</p>
+                  <button onClick={() => setShowWorkoutModal(true)} className="mt-3 text-xs text-emerald-400 hover:text-emerald-300">
+                    Log your first session →
+                  </button>
+                </div>
+              ) : (
+                workoutsLogged.map(w => (
+                  <div key={w.id} className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e2a] last:border-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                        style={{ background: "linear-gradient(135deg, #1a3028, #0f2018)" }}>
+                        {w.emoji}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-white">{w.name}</p>
+                        <p className="text-xs text-stone-500">{w.type} · {w.duration} min</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold text-emerald-400">-{w.cal} kcal</span>
+                      <button onClick={() => setWorkoutsLogged(wl => wl.filter(x => x.id !== w.id))}
+                        className="text-stone-600 hover:text-red-400 transition-colors text-lg leading-none">×</button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Workout library */}
+            <div>
+              <h3 className="text-sm font-semibold text-stone-400 uppercase tracking-wider mb-3">Workout Library</h3>
+              <div className="grid grid-cols-2 gap-3">
+                {WORKOUTS.map(w => (
+                  <button key={w.name} onClick={() => addWorkout(w)}
+                    className="bg-[#1a1a24] rounded-2xl p-4 text-left border border-[#2a2a38] hover:border-emerald-600 transition-all group">
+                    <span className="text-2xl block mb-2">{w.emoji}</span>
+                    <p className="text-sm font-semibold text-white group-hover:text-emerald-400 transition-colors">{w.name}</p>
+                    <p className="text-xs text-stone-500 mt-0.5">{w.duration} min · {w.cal} kcal</p>
+                    <span className="mt-2 inline-block text-xs bg-[#2a2a38] text-stone-400 px-2 py-0.5 rounded-full">{w.type}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── PROGRESS ── */}
+        {tab === "progress" && (
+          <div className="space-y-5">
+            <h2 className="text-lg font-bold" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>Your Progress</h2>
+
+            {/* Weight tracker */}
+            <div className="bg-[#1a1a24] rounded-2xl p-5 border border-[#2a2a38]">
+              <h3 className="text-sm font-semibold text-stone-400 uppercase tracking-wider mb-4">Weight Tracker (kg)</h3>
+              {/* Mini chart */}
+              <div className="flex items-end gap-2 h-24 mb-4">
+                {weightLog.slice(-7).map((entry, i) => {
+                  const vals = weightLog.slice(-7).map(e => e.val);
+                  const min = Math.min(...vals) - 0.5;
+                  const max = Math.max(...vals) + 0.5;
+                  const h = Math.round(((entry.val - min) / (max - min)) * 64) + 20;
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                      <span className="text-xs text-stone-500">{entry.val}</span>
+                      <div className="w-full rounded-t-lg" style={{
+                        height: `${h}px`,
+                        background: i === weightLog.slice(-7).length - 1
+                          ? "linear-gradient(180deg,#f472b6,#fb923c)"
+                          : "#2a2a38"
+                      }} />
+                      <span className="text-xs text-stone-600">{entry.date.split(" ")[1]}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2">
+                <input value={weight} onChange={e => setWeight(e.target.value)} placeholder="Today's weight (kg)"
+                  className="flex-1 bg-[#2a2a38] text-white text-sm rounded-xl px-4 py-2.5 outline-none" />
+                <button onClick={logWeight} className="text-white text-sm px-4 py-2.5 rounded-xl font-semibold"
+                  style={{ background: "linear-gradient(135deg, #f472b6, #fb923c)" }}>Log</button>
+              </div>
+            </div>
+
+            {/* Weekly nutrition summary */}
+            <div className="bg-[#1a1a24] rounded-2xl p-5 border border-[#2a2a38]">
+              <h3 className="text-sm font-semibold text-stone-400 uppercase tracking-wider mb-4">Weekly Averages</h3>
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  { label: "Avg Calories", val: "1,650 kcal", color: "text-pink-400", icon: "🔥" },
+                  { label: "Avg Protein", val: "98g", color: "text-amber-400", icon: "💪" },
+                  { label: "Workouts", val: "4 sessions", color: "text-emerald-400", icon: "🏅" },
+                  { label: "Avg Water", val: "6.2 glasses", color: "text-sky-400", icon: "💧" },
+                ].map(stat => (
+                  <div key={stat.label} className="bg-[#12121a] rounded-xl p-4 border border-[#2a2a38]">
+                    <span className="text-xl block mb-1">{stat.icon}</span>
+                    <p className={`text-lg font-bold ${stat.color}`}>{stat.val}</p>
+                    <p className="text-xs text-stone-500 mt-0.5">{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Achievements */}
+            <div className="bg-[#1a1a24] rounded-2xl p-5 border border-[#2a2a38]">
+              <h3 className="text-sm font-semibold text-stone-400 uppercase tracking-wider mb-4">Achievements 🏆</h3>
+              <div className="space-y-3">
+                {[
+                  { name: "Hydration Hero", desc: "8 glasses in a day", earned: water >= 8, icon: "💧" },
+                  { name: "Meal Planner", desc: "Log 3+ meals", earned: meals.length >= 3, icon: "🍽️" },
+                  { name: "Workout Warrior", desc: "Complete a workout", earned: workoutsLogged.length >= 1, icon: "⚡" },
+                  { name: "Step Queen", desc: "Hit your step goal", earned: steps >= DAILY_GOALS.steps, icon: "👟" },
+                  { name: "Calorie Conscious", desc: "Stay within daily goal", earned: totals.cal > 0 && totals.cal <= DAILY_GOALS.cal, icon: "🎯" },
+                ].map(a => (
+                  <div key={a.name} className={`flex items-center gap-4 rounded-xl p-3 border transition-all ${
+                    a.earned ? "border-amber-600 bg-[#1e1a0e]" : "border-[#2a2a38] opacity-50"
+                  }`}>
+                    <span className="text-2xl">{a.icon}</span>
+                    <div className="flex-1">
+                      <p className={`text-sm font-semibold ${a.earned ? "text-amber-400" : "text-stone-500"}`}>{a.name}</p>
+                      <p className="text-xs text-stone-600">{a.desc}</p>
+                    </div>
+                    {a.earned && <span className="text-amber-400 text-lg">★</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* ── ADD FOOD MODAL ── */}
+      {showFoodModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowFoodModal(false)} />
+          <div className="relative z-10 bg-[#1a1a24] rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[80vh] flex flex-col border border-[#2a2a38]">
+            <div className="px-5 pt-5 pb-4 border-b border-[#2a2a38]">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-bold text-white">Add Food</h3>
+                <button onClick={() => setShowFoodModal(false)} className="text-stone-500 hover:text-white text-2xl leading-none">×</button>
+              </div>
+              <input value={foodSearch} onChange={e => { setFoodSearch(e.target.value); setSelectedFood(null); }}
+                placeholder="Search food..." className="w-full bg-[#2a2a38] text-white rounded-xl px-4 py-2.5 text-sm outline-none mb-3" />
+              <div className="flex gap-2">
+                {["Breakfast","Lunch","Dinner","Snack"].map(mt => (
+                  <button key={mt} onClick={() => setMealType(mt)}
+                    className={`text-xs px-3 py-1.5 rounded-full transition-all ${mealType === mt ? "text-white" : "text-stone-500 bg-[#2a2a38] hover:text-white"}`}
+                    style={mealType === mt ? { background: "linear-gradient(135deg,#f472b6,#fb923c)" } : {}}>
+                    {mt}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="overflow-y-auto flex-1 px-5 py-3">
+              {filteredFoods.map(f => (
+                <button key={f.name} onClick={() => setSelectedFood(f)}
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-1 transition-all text-left ${
+                    selectedFood?.name === f.name ? "bg-pink-900/40 border border-pink-600" : "hover:bg-[#2a2a38] border border-transparent"
+                  }`}>
+                  <span className="text-xl">{f.emoji}</span>
+                  <div className="flex-1">
+                    <p className="text-sm text-white">{f.name}</p>
+                    <p className="text-xs text-stone-500">{f.cal} kcal · P:{f.protein}g · C:{f.carbs}g · F:{f.fat}g</p>
+                  </div>
+                  {selectedFood?.name === f.name && <span className="text-pink-400 text-lg">✓</span>}
+                </button>
+              ))}
+            </div>
+            {selectedFood && (
+              <div className="px-5 py-4 border-t border-[#2a2a38]">
+                <div className="flex items-center gap-3 mb-3">
+                  <p className="text-sm text-stone-400 flex-1">Servings:</p>
+                  <div className="flex items-center gap-3 bg-[#2a2a38] rounded-xl px-3 py-1.5">
+                    <button onClick={() => setFoodQty(q => Math.max(0.5, q - 0.5))} className="text-stone-400 hover:text-white w-5">−</button>
+                    <span className="text-white text-sm w-6 text-center">{foodQty}</span>
+                    <button onClick={() => setFoodQty(q => q + 0.5)} className="text-stone-400 hover:text-white w-5">+</button>
+                  </div>
+                  <span className="text-pink-400 font-bold text-sm">{Math.round(selectedFood.cal * foodQty)} kcal</span>
+                </div>
+                <button onClick={addFood} className="w-full text-white py-3 rounded-xl font-semibold"
+                  style={{ background: "linear-gradient(135deg,#f472b6,#fb923c)" }}>
+                  Add to {mealType}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── ADD WORKOUT MODAL ── */}
+      {showWorkoutModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowWorkoutModal(false)} />
+          <div className="relative z-10 bg-[#1a1a24] rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[80vh] flex flex-col border border-[#2a2a38]">
+            <div className="px-5 pt-5 pb-4 border-b border-[#2a2a38]">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-white">Log Workout</h3>
+                <button onClick={() => setShowWorkoutModal(false)} className="text-stone-500 hover:text-white text-2xl leading-none">×</button>
+              </div>
+            </div>
+            <div className="overflow-y-auto flex-1 px-5 py-3">
+              <div className="grid grid-cols-2 gap-3">
+                {WORKOUTS.map(w => (
+                  <button key={w.name} onClick={() => addWorkout(w)}
+                    className="bg-[#12121a] rounded-2xl p-4 text-left border border-[#2a2a38] hover:border-emerald-600 transition-all group">
+                    <span className="text-2xl block mb-2">{w.emoji}</span>
+                    <p className="text-sm font-semibold text-white group-hover:text-emerald-400">{w.name}</p>
+                    <p className="text-xs text-stone-500 mt-1">{w.duration} min</p>
+                    <p className="text-xs text-emerald-500 mt-0.5">-{w.cal} kcal</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
